@@ -128,10 +128,9 @@ def center_by_homography(img1, img2):
     # print(["DEF", D, E, F])
 
     # print("-")
-    # x = -(B*F+C*(1-E))/ (E+A*(1-E)+B*D-1)
-    # y = (A*F-F-C*D) / (E+A*(1-E)+B*D-1)
-    
-
+    x = -(B*F+C*(1-E))/ (E+A*(1-E)+B*D-1)
+    y = (A*F-F-C*D) / (E+A*(1-E)+B*D-1)
+    return (x,y )
 
 #     opts = ()
 
