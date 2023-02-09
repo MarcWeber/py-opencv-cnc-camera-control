@@ -1,4 +1,5 @@
 import cv2 as cv
+import typing
 import scipy
 import math
 import numpy as np
@@ -80,7 +81,7 @@ def get_matches(img1, img2, MIN_MATCHES):
     return {"matches": matches, "good_matches": good_matches, "kp1": kp1, "kp2": kp2, "des1" : des1, "des2": des2, "kp_img2": kp_img2}
 
 
-def keypoints(img1, img2):
+def keypoints(img1, img2, match_type = "bf"):
     feat = cv.SIFT_create()
     # feat = cv2.ORB_create()
 
@@ -95,8 +96,21 @@ def keypoints(img1, img2):
     # flann = cv.FlannBasedMatcher(index_params, search_params)
     # matches = flann.knnMatch(des1, des2, k=2)
 
-    bf = cv.BFMatcher()
-    matches = bf.knnMatch(des1, des2, k=2)
+    matches = None 
+    if match_type == "bf":
+        bf = cv.BFMatcher()
+        matches = bf.knnMatch(des1, des2, k=2)
+    elif match_type == "flann":
+        FLANN_INDEX_KDTREE =1 
+        index_params = dict(algorithm = FLANN_INDEX_KDTREE, trees = 5)
+        search_params = dict(checks = 50)
+        flann = cv.FlannBasedMatcher(index_params, search_params)
+        matches = flann.knnMatch(des1,des2,k=2)
+    else:
+        raise Exception('unexpected')
+
+     
+
     # Even in the top 2 descriptors, we may have obtained some trivial descriptors. We eliminate those with ratio test.
 
     good = []
@@ -138,10 +152,11 @@ def same_xy_homography_matrix(Hom):
 
 def center_by_homography(img1, img2):
     """ doesn't work well 50px off or so """
-    kp = keypoints(img1, img2)
+    kp = keypoints(img1, img2, match_type="bf")
     matches = kp["matches"]
     kp1 = kp["kp1"]
     kp2 = kp["kp2"]
+
     kp_img1 = cv.drawKeypoints(img1, [kp1[m.queryIdx] for m in matches[:,0] ], None, color=(0, 255, 0), flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     kp_img2 = cv.drawKeypoints(img2, [kp2[m.trainIdx] for m in matches[:,0] ], None, color=(0, 255, 0), flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     if (len(matches[:,0]) >= 4):
