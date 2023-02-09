@@ -1,0 +1,12 @@
+octorest
+numpy
+matplotlib
+imreg_dft
+pyperclip
+scipy
+scikit-image
+autopep8
+pyshine
+PyQt6
+imutils
+sympy

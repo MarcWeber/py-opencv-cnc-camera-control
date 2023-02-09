@@ -2,8 +2,13 @@ import cv2 as cv
 import scipy
 import math
 import numpy as np
+import sympy as sp
 from lib.numpyutils import rotation_matrix_2d, rotation_matrix_2d_x, vector_intersect, vectors_angle
 from lib.opencvutils import CameraThread, ImageDR, cross, line_rounded
+
+from sympy.utilities import lambdify
+from sympy.solvers import solve
+from sympy import Symbol
 
 from machines.DummyMachine import Machine
 
@@ -103,6 +108,34 @@ def keypoints(img1, img2):
 
     return dict(kp1 = kp1, kp2 = kp2, des1 = des1, des2 = des2, matches = matches)
 
+def same_xy_homography_matrix(Hom):
+    """
+    search x,y which doesn't change by H matrix
+    H * (x,y,1) = (x,y,1)
+    """
+    print(Hom)
+    A, B, C, D, E, F, G, H, I, x, y = sp.symbols('A B C D E F G H I x y')
+
+    eqs = [
+        A * x + B * y + C * 1 - x ,
+        D * x + E * y + F * 1 - y ,
+        # G * x + H * y + I * 1 - 1 ,
+    ]
+    solution = solve(eqs, [x, y])
+
+    s = {}
+    s[A], s[B], s[C] = list(Hom[0])
+    s[D], s[E], s[F] = list(Hom[1])
+    print(s)
+            
+    print(solution[x].subs(s))
+    return [
+        # x
+        solution[x].evalf(subs=s),
+        solution[y].evalf(subs=s)
+    ]
+
+
 def center_by_homography(img1, img2):
     """ doesn't work well 50px off or so """
     kp = keypoints(img1, img2)
@@ -113,13 +146,15 @@ def center_by_homography(img1, img2):
     kp_img2 = cv.drawKeypoints(img2, [kp2[m.trainIdx] for m in matches[:,0] ], None, color=(0, 255, 0), flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     if (len(matches[:,0]) >= 4):
         src_points = np.float32([ kp1[m.queryIdx].pt for m in matches[:,0] ])
-        dst_points =np.float32([ kp2[m.trainIdx].pt for m in matches[:,0] ])
+        dst_points = np.float32([ kp2[m.trainIdx].pt for m in matches[:,0] ])
         src = src_points.reshape(-1,1,2)
         dst = dst_points.reshape(-1,1,2)
         H, masked = cv.findHomography(src, dst, cv.RANSAC, 5.0)
     else:
         raise AssertionError('Can’t find enough keypoints.')
 
+
+    return same_xy_homography_matrix(H) 
     # print(H)
     
     A,B,C = list(H[0])
@@ -128,8 +163,14 @@ def center_by_homography(img1, img2):
     # print(["DEF", D, E, F])
 
     # print("-")
-    x = -(B*F+C*(1-E))/ (E+A*(1-E)+B*D-1)
-    y = (A*F-F-C*D) / (E+A*(1-E)+B*D-1)
+    # solving H * (x,y,1) = (x,y,1) for x,y yields
+    # x = -(B*F+C*(1-E))/ (E+A*(1-E)+B*D-1)
+    # y = (A*F-F-C*D) / (E+A*(1-E)+B*D-1)
+
+
+    x = (B*F - C*E + C)/(A*E - A - B*D - E + 1)
+    y = (-A*F + C*D + F)/(A*E - A - B*D - E + 1)
+
     return (x,y )
 
 #     opts = ()
